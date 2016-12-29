@@ -57,3 +57,8 @@ obj-$(CONFIG_FB_MSM_MDSS) += mdss_fb.o mdss_util.o
 obj-$(CONFIG_COMPAT) += mdss_compat_utils.o
 
 obj-$(CONFIG_FB_MSM_MDSS_KCAL_CTRL) += mdss_mdp_kcal_ctrl.o
+<<<<<<< HEAD
+=======
+obj-$(CONFIG_FB_MSM_MDSS) += lcd_notify.o
+obj-$(CONFIG_FB_MSM_MDSS) += state_notifier.o
+>>>>>>> 6dde342... kenzo: Add state notifier driver @neobuddy89
