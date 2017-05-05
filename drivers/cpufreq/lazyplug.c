@@ -28,9 +28,8 @@
  * playback, turning on all CPU cores is not battery friendly. So Lazyplug
  * *does* actually turns off CPU cores, but only when idle state is long
  * enough(to reduce the number of CPU core switchings) and when the device
- * has its screen off(determination is done via earlysuspend or
- * powersuspend because framebuffer API causes troubles on hotplugging CPU
- * cores).
+ * has its screen off(determination is done via lcd notifier because
+ * framebuffer API causes troubles on hotplugging CPU cores).
  *
  * Basic methodology :
  * Lazyplug uses majority of the codes from intelli_plug by faux123 to
@@ -72,17 +71,21 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/cpufreq.h>
-#include <linux/display_state.h>
+#include <linux/lcd_notify.h>
 
 //#define DEBUG_LAZYPLUG
 #undef DEBUG_LAZYPLUG
 
 #define LAZYPLUG_MAJOR_VERSION	1
 <<<<<<< HEAD
+<<<<<<< HEAD
 #define LAZYPLUG_MINOR_VERSION	4
 =======
 #define LAZYPLUG_MINOR_VERSION	11
 >>>>>>> 8f871c9... lazyplug: Fix cpu_online call in unplug_cpu
+=======
+#define LAZYPLUG_MINOR_VERSION	12
+>>>>>>> 25f9538... lazyplug: Use LCD Notifier instead of display state
 
 #define DEF_SAMPLING_MS			(268)
 #define DEF_IDLE_COUNT			(19) /* 268 * 19 = 5092, almost equals to 5 seconds */
@@ -91,6 +94,7 @@
 
 static DEFINE_MUTEX(lazyplug_mutex);
 static DEFINE_MUTEX(lazymode_mutex);
+static struct notifier_block lcd_notifier_hook;
 
 static struct delayed_work lazyplug_work;
 static struct delayed_work lazyplug_boost;
@@ -112,8 +116,7 @@ static unsigned int __read_mostly sampling_time = DEF_SAMPLING_MS;
 
 static int persist_count = 0;
 
-static bool __read_mostly suspended;
-static bool __read_mostly last_state;
+static bool __read_mostly suspended = false;
 
 struct ip_cpu_info {
 	unsigned int sys_max;
@@ -277,9 +280,17 @@ static unsigned int calculate_thread_stats(void)
 	return nr_run;
 }
 
-static void lazyplug_boost_fn(struct work_struct *work)
+static void cpu_all_up(struct work_struct *work);
+static DECLARE_WORK(cpu_all_up_work, cpu_all_up);
+
+static void cpu_all_up(struct work_struct *work)
 {
 	cpu_all_ctrl(true);
+}
+
+static void lazyplug_boost_fn(struct work_struct *work)
+{
+	schedule_work(&cpu_all_up_work);
 }
 
 /*
@@ -326,6 +337,7 @@ static void unplug_cpu(int min_active_cpu)
 	}
 }
 
+<<<<<<< HEAD
 static void lazy_suspend_handler(void)
 {
 	if (last_state) {
@@ -350,15 +362,15 @@ static void lazy_suspend_handler(void)
 	}
 }
 
+=======
+>>>>>>> 25f9538... lazyplug: Use LCD Notifier instead of display state
 static void lazyplug_work_fn(struct work_struct *work)
 {
 	unsigned int nr_run_stat;
 	unsigned int cpu_count = 0;
 	unsigned int nr_cpus = 0;
-	suspended = !is_display_on();
 
 	if (lazyplug_active) {
-		lazy_suspend_handler();
 		nr_run_stat = calculate_thread_stats();
 		update_per_cpu_stat();
 #ifdef DEBUG_LAZYPLUG
@@ -368,11 +380,6 @@ static void lazyplug_work_fn(struct work_struct *work)
 		nr_cpus = num_online_cpus();
 
 		if (!suspended) {
-			if (suspended != last_state) {
-				lazy_suspend_handler();
-				last_state = suspended;
-			}
-
 			if (persist_count > 0)
 				persist_count--;
 
@@ -400,7 +407,7 @@ static void lazyplug_work_fn(struct work_struct *work)
 				}
 			} else {
 				idle_count = 0;
-				cpu_all_ctrl(true);
+				schedule_work(&cpu_all_up_work);
 #ifdef DEBUG_LAZYPLUG
 				online_state_count++;
 				if (previous_online_status == false) {
@@ -410,18 +417,61 @@ static void lazyplug_work_fn(struct work_struct *work)
 #endif
 			}
 		}
-		else {
 #ifdef DEBUG_LAZYPLUG
+		else
 			pr_info("lazyplug is suspended!\n");
 #endif
-			if (suspended != last_state) {
-				lazy_suspend_handler();
-				last_state = suspended;
-			}
-		}
 	}
 	queue_delayed_work_on(0, lazyplug_wq, &lazyplug_work,
 		msecs_to_jiffies(sampling_time));
+}
+
+static void lazyplug_suspend(void)
+{
+	if (lazyplug_active) {
+		pr_info("lazyplug: screen-off, turn off cores\n");
+		flush_workqueue(lazyplug_wq);
+
+		mutex_lock(&lazyplug_mutex);
+		suspended = true;
+		mutex_unlock(&lazyplug_mutex);
+
+		// put rest of the cores to sleep unconditionally!
+		cpu_all_ctrl(false);
+	}
+}
+
+static void lazyplug_resume(void)
+{
+	if (lazyplug_active) {
+		pr_info("lazyplug: screen-on, turn on cores\n");
+		mutex_lock(&lazyplug_mutex);
+		/* keep cores awake long enough for faster wake up */
+		persist_count = BUSY_PERSISTENCE;
+		suspended = false;
+		mutex_unlock(&lazyplug_mutex);
+
+		schedule_work(&cpu_all_up_work);
+	}
+	queue_delayed_work_on(0, lazyplug_wq, &lazyplug_work,
+		msecs_to_jiffies(10));
+}
+
+static int lcd_notifier_call(struct notifier_block *this,
+				unsigned long event, void *data)
+{
+	switch (event) {
+		case LCD_EVENT_ON_START:
+			lazyplug_resume();
+			break;
+		case LCD_EVENT_OFF_END:
+			lazyplug_suspend();
+			break;
+		default:
+			break;
+	}
+	
+	return 0;
 }
 
 static unsigned int Lnr_run_profile_sel = 0;
@@ -544,9 +594,15 @@ int __init lazyplug_init(void)
 		nr_run_profile_sel = NR_RUN_ECO_MODE_PROFILE;
 	}
 
+<<<<<<< HEAD
 	rc = input_register_handler(&lazyplug_input_handler);
 
 	last_state = is_display_on();	
+=======
+	lcd_notifier_hook.notifier_call = lcd_notifier_call;
+	if (lcd_register_client(&lcd_notifier_hook))
+		pr_info("%s lcd_notify hook create failed!\n", __FUNCTION__);
+>>>>>>> 25f9538... lazyplug: Use LCD Notifier instead of display state
 
 	lazyplug_wq = alloc_workqueue("lazyplug",
 				WQ_HIGHPRI | WQ_UNBOUND, 1);
