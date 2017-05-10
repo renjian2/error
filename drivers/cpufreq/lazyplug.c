@@ -38,8 +38,13 @@
  * the next poll determines 1 core isn’t enough, it fires up all CPU cores
  * (instead of selective CPU cores; which is the traditional intelli_plug’s
  * method).
+<<<<<<< HEAD
  * Lazyplug also takes touch-screen input events to fire up CPU cores to
  * minimize noticeable performance degradation.
+=======
+ * Lazyplug also takes fingerprint scanner input events to fire up CPU cores to
+ * minimize noticeable wakeup lag.
+>>>>>>> 49a4b29... lazplug: Boost on fingerprint scan
  * There’s also a “lazy mode” for *not* aggressively turning on CPU cores
  * on scenario such as video playback. For example, if you hook up
  * lazyplug_enter_lazy() to the video session open function, Lazyplug won’t
@@ -79,6 +84,7 @@
 #define LAZYPLUG_MAJOR_VERSION	1
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 #define LAZYPLUG_MINOR_VERSION	4
 =======
 #define LAZYPLUG_MINOR_VERSION	11
@@ -86,11 +92,16 @@
 =======
 #define LAZYPLUG_MINOR_VERSION	12
 >>>>>>> 25f9538... lazyplug: Use LCD Notifier instead of display state
+=======
+#define LAZYPLUG_MINOR_VERSION	13
+>>>>>>> 49a4b29... lazplug: Boost on fingerprint scan
 
 #define DEF_SAMPLING_MS			(268)
 #define DEF_IDLE_COUNT			(19) /* 268 * 19 = 5092, almost equals to 5 seconds */
 
 #define BUSY_PERSISTENCE		(3500 / DEF_SAMPLING_MS)
+
+#define FINGERPRINT_KEY 0x2ee
 
 static DEFINE_MUTEX(lazyplug_mutex);
 static DEFINE_MUTEX(lazymode_mutex);
@@ -105,7 +116,11 @@ static struct workqueue_struct *lazyplug_boost_wq;
 static unsigned int __read_mostly lazyplug_active = 1;
 module_param(lazyplug_active, uint, 0664);
 
+<<<<<<< HEAD
 static unsigned int __read_mostly touch_boost_active = 0;
+=======
+static unsigned int __read_mostly touch_boost_active = 1;
+>>>>>>> 49a4b29... lazplug: Boost on fingerprint scan
 module_param(touch_boost_active, uint, 0664);
 
 static unsigned int __read_mostly nr_run_profile_sel = 0;
@@ -117,6 +132,8 @@ static unsigned int __read_mostly sampling_time = DEF_SAMPLING_MS;
 static int persist_count = 0;
 
 static bool __read_mostly suspended = false;
+
+static bool __read_mostly touched = false;
 
 struct ip_cpu_info {
 	unsigned int sys_max;
@@ -434,6 +451,7 @@ static void lazyplug_suspend(void)
 
 		mutex_lock(&lazyplug_mutex);
 		suspended = true;
+		touched = false;
 		mutex_unlock(&lazyplug_mutex);
 
 		// put rest of the cores to sleep unconditionally!
@@ -470,7 +488,7 @@ static int lcd_notifier_call(struct notifier_block *this,
 		default:
 			break;
 	}
-	
+
 	return 0;
 }
 
@@ -484,7 +502,11 @@ void lazyplug_enter_lazy(bool enter)
 		pr_info("lazyplug: entering lazy mode\n");
 		Lnr_run_profile_sel = nr_run_profile_sel;
 		Ltouch_boost_active = touch_boost_active;
+<<<<<<< HEAD
 		nr_run_profile_sel = 2; /* conversative profile */
+=======
+		nr_run_profile_sel = 6; /* lazy profile */
+>>>>>>> 49a4b29... lazplug: Boost on fingerprint scan
 		touch_boost_active = false;
 		Lprevious_state = true;
 	} else if (!enter && Lprevious_state) {
@@ -499,6 +521,7 @@ void lazyplug_enter_lazy(bool enter)
 static void lazyplug_input_event(struct input_handle *handle,
 		unsigned int type, unsigned int code, int value)
 {
+<<<<<<< HEAD
 #ifdef DEBUG_LAZYPLUG
 	pr_info("lazyplug touched!\n");
 #endif
@@ -507,6 +530,14 @@ static void lazyplug_input_event(struct input_handle *handle,
 		idle_count = 0;
 		queue_delayed_work_on(0, lazyplug_wq, &lazyplug_boost,
 			msecs_to_jiffies(10));
+=======
+	if (lazyplug_active && touch_boost_active && suspended && !touched) {
+		idle_count = 0;
+		pr_info("lazyplug touched!\n");
+		queue_delayed_work(lazyplug_wq, &lazyplug_boost,
+			msecs_to_jiffies(10));
+		touched = true;
+>>>>>>> 49a4b29... lazplug: Boost on fingerprint scan
 	}
 }
 
@@ -549,6 +580,7 @@ static void lazyplug_input_disconnect(struct input_handle *handle)
 
 static const struct input_device_id lazyplug_ids[] = {
 	{
+<<<<<<< HEAD
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
 			 INPUT_DEVICE_ID_MATCH_ABSBIT,
 		.evbit = { BIT_MASK(EV_ABS) },
@@ -564,6 +596,11 @@ static const struct input_device_id lazyplug_ids[] = {
 			    BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) },
 	}, /* touchpad */
 	{ },
+=======
+		.flags = INPUT_DEVICE_ID_MATCH_KEYBIT,
+		.keybit = { [BIT_WORD(FINGERPRINT_KEY)] = BIT_MASK(FINGERPRINT_KEY) },
+	}, /* fingerprint sensor */
+>>>>>>> 49a4b29... lazplug: Boost on fingerprint scan
 };
 
 static struct input_handler lazyplug_input_handler = {
@@ -576,6 +613,7 @@ static struct input_handler lazyplug_input_handler = {
 
 int __init lazyplug_init(void)
 {
+	int rc;
 	nr_possible_cores = num_possible_cpus();
 
 	pr_info("lazyplug: version %d.%d by arter97\n"
@@ -595,10 +633,15 @@ int __init lazyplug_init(void)
 	}
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 	rc = input_register_handler(&lazyplug_input_handler);
 
 	last_state = is_display_on();	
 =======
+=======
+	rc = input_register_handler(&lazyplug_input_handler);
+
+>>>>>>> 49a4b29... lazplug: Boost on fingerprint scan
 	lcd_notifier_hook.notifier_call = lcd_notifier_call;
 	if (lcd_register_client(&lcd_notifier_hook))
 		pr_info("%s lcd_notify hook create failed!\n", __FUNCTION__);
