@@ -145,7 +145,14 @@ static DEFINE_PER_CPU(struct ip_cpu_info, ip_info);
 
 #define CAPACITY_RESERVE	50
 
+<<<<<<< HEAD
 #if defined(CONFIG_ARCH_APQ8084) || defined(CONFIG_ARM64)
+=======
+#if defined(CONFIG_ARCH_MSM8994) || defined(CONFIG_ARCH_MSM_8996) || \
+defined(CONFIG_ARCH_MSM8992)
+#define THREAD_CAPACITY (520 - CAPACITY_RESERVE)
+#elif defined(CONFIG_ARCH_APQ8084) || defined(CONFIG_ARM64)
+>>>>>>> d388405... lazyplug: Add MSM8992 + Hexa core support
 #define THREAD_CAPACITY (430 - CAPACITY_RESERVE)
 #elif defined(CONFIG_ARCH_MSM8960) || defined(CONFIG_ARCH_APQ8064) || \
 defined(CONFIG_ARCH_MSM8974)
@@ -209,6 +216,7 @@ static unsigned int __read_mostly *nr_run_profiles[] = {
 
 #define NR_RUN_ECO_MODE_PROFILE	3
 #define NR_RUN_HYSTERESIS_OCTA	16
+#define NR_RUN_HYSTERESIS_HEXA	12
 #define NR_RUN_HYSTERESIS_QUAD	8
 #define NR_RUN_HYSTERESIS_DUAL	4
 
@@ -621,8 +629,11 @@ int __init lazyplug_init(void)
 		 LAZYPLUG_MAJOR_VERSION,
 		 LAZYPLUG_MINOR_VERSION);
 
-	if (nr_possible_cores > 4) {
+	if (nr_possible_cores > 6) {
 		nr_run_hysteresis = NR_RUN_HYSTERESIS_OCTA;
+		nr_run_profile_sel = 0;
+	} else if (nr_possible_cores > 4) {
+		nr_run_hysteresis = NR_RUN_HYSTERESIS_HEXA;
 		nr_run_profile_sel = 0;
 	} else if (nr_possible_cores > 2) {
 		nr_run_hysteresis = NR_RUN_HYSTERESIS_QUAD;
