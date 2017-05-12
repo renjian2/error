@@ -108,7 +108,7 @@ static DEFINE_MUTEX(lazymode_mutex);
 static struct notifier_block state_notifier_hook;
 
 static struct delayed_work lazyplug_work;
-static struct delayed_work lazyplug_boost;
+static struct work_struct lazyplug_boost;
 
 static struct workqueue_struct *lazyplug_wq;
 static struct workqueue_struct *lazyplug_boost_wq;
@@ -542,8 +542,7 @@ static void lazyplug_input_event(struct input_handle *handle,
 	if (lazyplug_active && touch_boost_active && suspended && !touched) {
 		idle_count = 0;
 		pr_info("lazyplug touched!\n");
-		queue_delayed_work(lazyplug_wq, &lazyplug_boost,
-			msecs_to_jiffies(10));
+		queue_work_on(0, lazyplug_wq, &lazyplug_boost);
 		touched = true;
 >>>>>>> 49a4b29... lazplug: Boost on fingerprint scan
 	}
@@ -660,17 +659,27 @@ int __init lazyplug_init(void)
 >>>>>>> 25f9538... lazyplug: Use LCD Notifier instead of display state
 =======
 	state_notifier_hook.notifier_call = state_notifier_call;
+<<<<<<< HEAD
 	if (state_register_client(&state_notifier_hook))
 		pr_info("%s state_notifier hook create failed!\n", __FUNCTION__);
 >>>>>>> 971daa2... Lazyplug: Convert to state_notifier
+=======
+	//if (state_register_client(&state_notifier_hook))
+		//pr_info("%s state_notifier hook create failed!\n", __FUNCTION__);
+>>>>>>> f822008... lazyplug: Don't delay fingerprint boost
 
 	lazyplug_wq = alloc_workqueue("lazyplug",
 				WQ_HIGHPRI | WQ_UNBOUND, 1);
 	lazyplug_boost_wq = alloc_workqueue("lplug_boost",
 				WQ_HIGHPRI | WQ_UNBOUND, 1);
 	INIT_DELAYED_WORK(&lazyplug_work, lazyplug_work_fn);
+<<<<<<< HEAD
 	INIT_DELAYED_WORK(&lazyplug_boost, lazyplug_boost_fn);
 	queue_delayed_work_on(0, lazyplug_wq, &lazyplug_work,
+=======
+	INIT_WORK(&lazyplug_boost, lazyplug_boost_fn);
+	queue_delayed_work(lazyplug_wq, &lazyplug_work,
+>>>>>>> f822008... lazyplug: Don't delay fingerprint boost
 		msecs_to_jiffies(10));
 
 	return 0;
