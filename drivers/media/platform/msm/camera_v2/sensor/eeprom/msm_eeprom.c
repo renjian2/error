@@ -26,7 +26,6 @@ DEFINE_MSM_MUTEX(msm_eeprom_mutex);
 static struct v4l2_file_operations msm_eeprom_v4l2_subdev_fops;
 #endif
 
-<<<<<<< HEAD
 extern int msm_sensor_module_info_set(enum msm_sensor_camera_id_t position, char* module_info);
 /**
   * msm_eeprom_match_module - match module from otp data
@@ -112,7 +111,7 @@ static int msm_eeprom_match_module(struct device_node *of, struct msm_eeprom_ctr
 	CDBG("%s:XXX", __func__);
 	return rc;
 }
-=======
+
 uint8_t g_s5k3p3_otp_module_id = 0;
 uint8_t g_s5k3p3_otp_vcm_id = 0;
 uint8_t g_ov16880_otp_module_id = 0;
@@ -120,7 +119,7 @@ uint8_t g_ov5670_otp_module_id = 0;
 uint8_t g_s5k5e8_otp_month = 0;
 uint8_t g_s5k5e8_otp_day = 0;
 uint8_t g_s5k5e8_otp_lens_id = 0;
->>>>>>> 5cbbe8e... drivers: camera: Fix camera sensor detection
+
 
 /**
   * msm_get_read_mem_size - Get the total size for allocation
@@ -1638,8 +1637,7 @@ static long msm_eeprom_subdev_fops_ioctl32(struct file *file, unsigned int cmd,
 }
 
 #endif
-<<<<<<< HEAD
-=======
+
 
 static void s5k3p3_set_otp_module_id(struct msm_eeprom_ctrl_t *e_ctrl)
 {
@@ -1692,7 +1690,6 @@ static void s5k5e8_set_otp_module_id(struct msm_eeprom_ctrl_t *e_ctrl)
 		g_s5k5e8_otp_lens_id = (uint8_t)(e_ctrl->cal_data.mapdata[5]);
 	}
 }
->>>>>>> 5cbbe8e... drivers: camera: Fix camera sensor detection
 
 static int msm_eeprom_platform_probe(struct platform_device *pdev)
 {
@@ -1833,11 +1830,11 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 		for (j = 0; j < e_ctrl->cal_data.num_data; j++)
 			CDBG("memory_data[%d] = 0x%X\n", j,
 				e_ctrl->cal_data.mapdata[j]);
-<<<<<<< HEAD
+
 		rc = msm_eeprom_match_module(of_node, e_ctrl);
 		if(rc < 0)
 			pr_err("%s : to set camera module info with otp data fail!!", __func__);
-=======
+
 
 		if (eb_info->eeprom_name != NULL)
 		{
@@ -1853,7 +1850,6 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 				s5k5e8_set_otp_module_id(e_ctrl);
 			}
 		}
->>>>>>> 5cbbe8e... drivers: camera: Fix camera sensor detection
 
 		e_ctrl->is_supported |= msm_eeprom_match_crc(&e_ctrl->cal_data);
 
